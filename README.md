@@ -57,17 +57,67 @@ The Gilded Sword crescent is the same power as the Master Sword beam in Ocarina 
 Fierce Deity: the orb replaces the old sword beam, so the two can't look alike. It fires on any normal slash, even without Z-targeting.
 Fierce Deity magic: each orb costs 1 magic, the same as the old beam. With an empty magic meter, no orb comes out.
 
+Minibosses (2× HP each unless noted)
+Gekko & Snapper: while crawling on the walls, Gekko lobs mud bubbles that knock you back. Snapper's rolling charge ends in a stomp shockwave, which you clear with a sidehop or backflip.
 
-Igos du Ikana: 10→20 HP (head phase), 14→28 HP (duel phase). Every 20 frames during his breath attack, also lobs a fire orb
-(1 heart burn, arcs over 32 frames) on top of the flame cone. Fire-breath cooldown: 150–300 frames → 80–160 frames.
+Gekko & Mad Jelly: the reformed jelly drops from the ceiling as a shockwave. Mini jellies hop at you instead of just crawling. Shattering the frozen jelly throws ice shards you need to shield against.
+Wart: during the bubble phase, the eye glows and then fires a short sweeping laser, and bubbles launch in rings. In the charging phase, every wall slam rains bubbles down around the room.
 
-Garo Master: 14→28 HP. The instant he reappears above Link mid-teleport, throws an electric orb straight down (1 heart shock, speed 14).
+Captain Keeta: his big slam sends a shockwave up the path and raises 2 Stalchildren near you (his soldiers). When he stops to fight, he adds a leaping spin slash.
 
-Gomess: 20→40 HP. Once per scythe revolution, flings 6 ember orbs outward in a ring (½ heart burn each) — mirrors Odolwa's flame ring.
+Iron Knuckle: the overhead smash sends a shockwave forward. When the armor breaks, the pieces fly out as shrapnel. Without armor, it sometimes throws its axe like a boomerang (the axe is its own limb, so this works). While the axe is out, it's unarmed and open to attack.
 
-Eyegore: 8→16 HP. Ground slam now also flings 2 ember orbs outward (½ heart burn each). Slam recovery: 20→10 frames.
+Igos du Ikana & lackeys: the fire breath leaves burning patches on the floor, and the flying head spits fireballs. A lackey that falls and isn't finished with fire or light gets back up faster. Once Igos is at half health, the lackeys fight in tandem (one blocks while the other flanks).
 
-Deep Python: 4→8 HP. While extended and facing Link, spits a water orb (1 heart + knockback, speed 13) every 70 frames. Stays extended 250→400 frames before retreating.
+Garo Master: its flaming swords send fire waves along the floor. The teleport-drop lands in a ring of flames. At half health it calls in 2 Garos. The death explosion throws embers first, as a warning.
 
-Gekko, Wart, Captain Keeta, Iron Knuckle, King's Lackeys: HP only, no new attacks (reasons given per-actor in the README — 
-either the fight was judged varied enough already, the file was too obfuscated to safely extend, or the actor doesn't fight at all).
+Gomess: bats break off the swarm to dive at you in waves. The spin attack throws the scythe out and back. At low health it fades out and reappears behind you.
+
+Eyegore (about 2× harder)
+16 HP instead of 8.
+Laser: 5 shots that step toward you with a lag, instead of 3 at fixed angles. Once enraged, the last shot becomes a 2-second beam sweeping the floor. The Mirror Shield still cancels it.
+Slam: sends out a shockwave ring, and rubble rains down around you.
+Enraged (half health): its eye glows red and it walks 25% faster. It slams twice, turning to face you for the second slam. It now also hits behind itself, so standing behind it is no longer a safe spot.
+New opening: an arrow in the eye while it's charging the laser makes it stagger. How long its eye stays open to damage after a slam or stun doesn't change.
+
+Deep Python (pick one below)
+A. Burrow hunters (safe look): 8 HP instead of 4. They lunge and bite without needing to grab you first, and they spit water shots. When hurt, a python retreats and can burst out of a different, emptied burrow later, so they hunt you through the rock. The last one alive becomes a real miniboss: miniboss music, 3× HP, and bigger attacks.
+B. Free swimmers (experimental): they leave the burrow and circle you in open water. The model was built to stay half inside a hole, so I'd fake a tail by tapering the back segments and add a swimming wave in code. I can't see the result rendered here, so it may look odd until you test it.
+
+Them (the ranch aliens):
+They weave from side to side as they come, and about half of them blink out for a moment on the way.
+Once a few have died, a bigger leader can appear. It takes two arrows and drops an extra red rupee.
+Aliens near you fire slow balls of light worth half a heart.
+The ball of light over the barn drops light bombs near you about every 10 seconds, with the landing spots marked on the ground.
+They still reach the barn at exactly the same time, so winning and losing work as before.
+
+More encounters:
+Enemies sometimes bring companions of their own kind.
+In some areas you also get a local creature: Keese with Chuchus on the night fields, Dragonflies over the swamp Octoroks, Ice Keese with Eenos, Bubbles with Ikana's Stalchildren.
+Random encounters sometimes send an extra: a second Dragonfly in the swamp, or a second Garo who drops in behind you.
+In dungeons, companions only appear in rooms where no door or chest waits on killing every enemy.
+Boss rooms, minigames, the Moon, Spider Houses, grottos and Secret Shrine are left alone.
+
+Regular enemies (mostly new behavior, not more HP)
+Big Octo: fires spreads of Octorok rocks at range. After a hit it dives and resurfaces somewhere else in its pond. At half health it calls up 2 Octoroks.
+Boe (black & white): groups pounce together. 4 or more that touch merge into a Big Boe (twice the size), which splits back into small ones when hit. A White Boe's pounce can freeze you briefly.
+Dinolfos: the fire breath sweeps side to side. It tail-spins if you get behind it. Pairs work together: one breathes fire while the other jump-slashes from the side.
+Eeno: big Eenos roll a snowball that grows as it rolls. Small ones throw from three sides at once. Merging into a big one slams down a snow shockwave.
+Wolfos / White Wolfos: they feint a lunge and then sidestep. They circle instead of attacking into your raised shield. One howl per fight calls in a second Wolfos. A White Wolfos slash can freeze you.
+Death Armos: its crash-down sends a shockwave ring. When one spots you, it wakes the others nearby. Its death dive now homes in on you before it explodes.
+ReDead / Gibdo: if not finished with fire, they get back up once. A ReDead scream calls the others in the room. A burned hostile Gibdo loses its bandages and keeps fighting as a ReDead.
+Poe Sisters: each sister gets her own trick. Meg's clones all attack at once. Jo leaves fire trails. Beth throws a blue flame that freezes. Amy vanishes and reappears behind you. Their HP stays the same because of the 3-minute timer.
+
+Random encounters
+
+Enemies gain companions only from their own region:
+
+Swamp: Dragonflies, Octoroks, Mad Scrubs.
+Mountains: White Wolfos in pairs; Eenos arriving with White Boe.
+Great Bay: Skullfish packs led by a Desbreko; bigger Leever rings.
+Ikana: the Garo's Mask ambush becomes a chain of 2–3 Garos; bigger Stalchild groups; more Stalchildren during Keeta's chase.
+
+Elites: about 1 enemy in 20 is bigger, sparkles gold, has double health and drops something better.
+Final Day frenzy: companions are twice as common on the third day and three times as common after midnight. After midnight elites are also twice as common.
+
+
