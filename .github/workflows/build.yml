@@ -11,7 +11,7 @@ jobs:
     steps:
     - name: Keep LF line endings so the patch applies
       run: git config --global core.autocrlf false
-    - name: Checkout this repo (contains mm-boss-overhaul.patch)
+    - name: Checkout this repo (contains mm-boss-overhaul.patch and mm-miniboss-overhaul.patch)
       uses: actions/checkout@v6
       with:
         path: builder
@@ -22,9 +22,15 @@ jobs:
         ref: f62b7ffd5e688f212d624cb7c62c56d02aefeb07
         submodules: true
         path: 2ship
+    # The two patches are independent (each applies cleanly on its own, in either order) and both apply here by
+    # default for the full experience. To build with only one, delete/comment out the other's line below - each
+    # still builds fine on its own.
     - name: Apply Boss Overhaul patch
       working-directory: 2ship
       run: git apply --whitespace=nowarn ../builder/mm-boss-overhaul.patch
+    - name: Apply Miniboss & Enemy Overhaul patch
+      working-directory: 2ship
+      run: git apply --whitespace=nowarn ../builder/mm-miniboss-overhaul.patch
     - name: Install ninja
       run: |
         choco install ninja -y
@@ -85,4 +91,5 @@ jobs:
         name: 2ship-mouse-boss-overhaul
         path: out
         if-no-files-found: warn
+ 
  
