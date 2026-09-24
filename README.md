@@ -56,3 +56,18 @@ The Gilded Sword crescent is the same power as the Master Sword beam in Ocarina 
 
 Fierce Deity: the orb replaces the old sword beam, so the two can't look alike. It fires on any normal slash, even without Z-targeting.
 Fierce Deity magic: each orb costs 1 magic, the same as the old beam. With an empty magic meter, no orb comes out.
+
+
+Igos du Ikana: 10→20 HP (head phase), 14→28 HP (duel phase). Every 20 frames during his breath attack, also lobs a fire orb
+(1 heart burn, arcs over 32 frames) on top of the flame cone. Fire-breath cooldown: 150–300 frames → 80–160 frames.
+
+Garo Master: 14→28 HP. The instant he reappears above Link mid-teleport, throws an electric orb straight down (1 heart shock, speed 14).
+
+Gomess: 20→40 HP. Once per scythe revolution, flings 6 ember orbs outward in a ring (½ heart burn each) — mirrors Odolwa's flame ring.
+
+Eyegore: 8→16 HP. Ground slam now also flings 2 ember orbs outward (½ heart burn each). Slam recovery: 20→10 frames.
+
+Deep Python: 4→8 HP. While extended and facing Link, spits a water orb (1 heart + knockback, speed 13) every 70 frames. Stays extended 250→400 frames before retreating.
+
+Gekko, Wart, Captain Keeta, Iron Knuckle, King's Lackeys: HP only, no new attacks (reasons given per-actor in the README — 
+either the fight was judged varied enough already, the file was too obfuscated to safely extend, or the actor doesn't fight at all).
