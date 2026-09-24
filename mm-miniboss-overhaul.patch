@@ -1,0 +1,1114 @@
+diff --git a/mm/2s2h/BenGui/BenMenu.cpp b/mm/2s2h/BenGui/BenMenu.cpp
+index ae57f8b83..411a32544 100644
+--- a/mm/2s2h/BenGui/BenMenu.cpp
++++ b/mm/2s2h/BenGui/BenMenu.cpp
+@@ -1853,6 +1853,42 @@ void BenMenu::AddEnhancements() {
+                 .Min(0)
+                 .Max(60)
+                 .DefaultValue(60));
++    AddWidget(path, "Miniboss Overhaul", WIDGET_SEPARATOR_TEXT);
++    AddWidget(path, "Miniboss Overhaul: Miniboss HP", WIDGET_CVAR_CHECKBOX)
++        .CVar("gEnhancements.MinibossOverhaul.MinibossHP")
++        .Options(CheckboxOptions()
++                     .Tooltip("Gekko, Wart, Iron Knuckle, Igos du Ikana, King's Lackeys, Garo Master, Gomess and "
++                              "Eyegore have twice their health. Damage dealt by the player is unchanged.")
++                     .DefaultValue(true));
++    AddWidget(path, "Miniboss Overhaul: Extra Attacks", WIDGET_CVAR_CHECKBOX)
++        .CVar("gEnhancements.MinibossOverhaul.ExtraAttacks")
++        .Options(CheckboxOptions()
++                     .Tooltip("Minibosses gain new attacks built from the game's own effects: Igos throws lobbed "
++                              "fireballs, Garo Master throws kunai while falling, Gomess rings the arena with "
++                              "embers during his scythe spin, and Eyegore flings shockwave chunks when it slams. "
++                              "Minibosses never pause less between attacks, only recover a little faster where "
++                              "noted.")
++                     .DefaultValue(true));
++    AddWidget(path, "Miniboss Overhaul: Deep Python", WIDGET_CVAR_CHECKBOX)
++        .CVar("gEnhancements.MinibossOverhaul.DeepPythonActive")
++        .Options(CheckboxOptions()
++                     .Tooltip("The eels in Pinnacle Rock stay surfaced longer and periodically spit a water bolt at "
++                              "Link instead of only biting whatever swims directly into them.")
++                     .DefaultValue(true));
++    AddWidget(path, "Enemy Overhaul", WIDGET_SEPARATOR_TEXT);
++    AddWidget(path, "Enemy Overhaul: More Enemies", WIDGET_CVAR_CHECKBOX)
++        .CVar("gEnhancements.EnemyOverhaul.MoreEnemies")
++        .Options(CheckboxOptions()
++                     .Tooltip("A handful of random encounters allow one extra enemy to be active at once (e.g. "
++                              "Dragonfly and Skullfish swarms), using only enemy types that already appear there.")
++                     .DefaultValue(true));
++    AddWidget(path, "Enemy Overhaul: Tougher Enemies", WIDGET_CVAR_CHECKBOX)
++        .CVar("gEnhancements.EnemyOverhaul.TougherEnemies")
++        .Options(CheckboxOptions()
++                     .Tooltip("Per-enemy health tweaks for Big Octo, Boe, Dinolfos, White Wolfos, ReDead, Gibdo and "
++                              "the Poe Sisters. Not every enemy is affected equally, and vanilla attack timing is "
++                              "never changed.")
++                     .DefaultValue(true));
+ 
+     path.column = SECTION_COLUMN_2;
+     AddWidget(path, "Minigames", WIDGET_SEPARATOR_TEXT);
+diff --git a/mm/2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h b/mm/2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h
+new file mode 100644
+index 000000000..18164dc1a
+--- /dev/null
++++ b/mm/2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h
+@@ -0,0 +1,32 @@
++#ifndef ENEMY_OVERHAUL_H
++#define ENEMY_OVERHAUL_H
++
++/**
++ * Enemy Overhaul (Enhancements > Difficulty Options > Enemy Overhaul)
++ *
++ * A lighter pass over the game's common enemies and random encounters: Big Octo, Black and White Boe, Dinolfos,
++ * Eeno, White Wolfos, Death Armos, ReDead, Gibdo and the Poe Sisters. Unlike Miniboss/Boss Overhaul this is not a
++ * flat multiplier - each enemy got whatever mix of more health, shorter downtime between attacks, or an extra
++ * attack made sense for it, so some are unchanged here and only get more variety in what they're mixed in with.
++ *
++ *  - More Enemies:  a handful of random encounters and enemy groups gain lore-appropriate variety (extra enemy
++ *                   types mixed into existing spawn groups, using only actors that already exist in that area).
++ *  - Tougher Enemies: per-enemy HP/attack tweaks, see each actor file for specifics. Never touches vanilla
++ *                   windup / recovery timing, only idle downtime and, where noted, HP or hit counts.
++ *
++ * Both toggles are on by default.
++ */
++
++#include "global.h"
++#include <libultraship/bridge/consolevariablebridge.h>
++
++#define EO_CVAR_VARIETY "gEnhancements.EnemyOverhaul.MoreEnemies"
++#define EO_CVAR_TOUGHER "gEnhancements.EnemyOverhaul.TougherEnemies"
++
++#define EO_VARIETY_ENABLED() (CVarGetInteger(EO_CVAR_VARIETY, 1) != 0)
++#define EO_TOUGHER_ENABLED() (CVarGetInteger(EO_CVAR_TOUGHER, 1) != 0)
++
++// Scales a vanilla health/threshold constant by a custom per-enemy multiplier (as a percentage, e.g. 150 = 1.5x).
++#define EO_HP_PCT(vanilla, pct) (EO_TOUGHER_ENABLED() ? (((vanilla) * (pct)) / 100) : (vanilla))
++
++#endif // ENEMY_OVERHAUL_H
+diff --git a/mm/2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h b/mm/2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h
+new file mode 100644
+index 000000000..49c1817cb
+--- /dev/null
++++ b/mm/2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h
+@@ -0,0 +1,38 @@
++#ifndef MINIBOSS_OVERHAUL_H
++#define MINIBOSS_OVERHAUL_H
++
++/**
++ * Miniboss Overhaul (Enhancements > Difficulty Options > Miniboss Overhaul)
++ *
++ * Same idea as Boss Overhaul, extended to the game's minibosses: Gekko & Snapper, Wart, Iron Knuckle (both the
++ * miniboss encounters and the ones that guard hallways), Igos du Ikana and his Lackeys, Garo Master, Gomess, and
++ * Eyegore. No new objects, textures or animations: every new attack reuses BossOverhaul's shared orb projectile
++ * (see BossOverhaul.h) or the miniboss' own vanilla actors and effects.
++ *
++ *  - Miniboss HP:   every miniboss above, Eyegore included, has twice its health. Damage dealt by the player is
++ *                    unchanged.
++ *  - Extra Attacks: new attacks built from vanilla actors, effects and sounds for every miniboss above, Eyegore
++ *                    included; vanilla windup / recovery timing is never shortened, only the idle downtime between
++ *                    attacks.
++ *  - Deep Python:   the eels in Pinnacle Rock actively hunt Link near their hole instead of only biting whatever
++ *                    swims directly into them.
++ *
++ * All three toggles are on by default and are read while the fight runs.
++ */
++
++#include "global.h"
++#include "2s2h/Enhancements/BossOverhaul/BossOverhaul.h"
++#include <libultraship/bridge/consolevariablebridge.h>
++
++#define MO_CVAR_HP "gEnhancements.MinibossOverhaul.MinibossHP"
++#define MO_CVAR_ATTACKS "gEnhancements.MinibossOverhaul.ExtraAttacks"
++#define MO_CVAR_DEEP_PYTHON "gEnhancements.MinibossOverhaul.DeepPythonActive"
++
++#define MO_HP_ENABLED() (CVarGetInteger(MO_CVAR_HP, 1) != 0)
++#define MO_ATTACKS_ENABLED() (CVarGetInteger(MO_CVAR_ATTACKS, 1) != 0)
++#define MO_DEEP_PYTHON_ENABLED() (CVarGetInteger(MO_CVAR_DEEP_PYTHON, 1) != 0)
++
++// Scales a vanilla health constant (or a threshold compared against health) for a miniboss: 2x.
++#define MO_HP(vanilla) (MO_HP_ENABLED() ? ((vanilla) * 2) : (vanilla))
++
++#endif // MINIBOSS_OVERHAUL_H
+diff --git a/mm/src/overlays/actors/ovl_Boss_04/z_boss_04.c b/mm/src/overlays/actors/ovl_Boss_04/z_boss_04.c
+index e8f7ebc81..66a954cb9 100644
+--- a/mm/src/overlays/actors/ovl_Boss_04/z_boss_04.c
++++ b/mm/src/overlays/actors/ovl_Boss_04/z_boss_04.c
+@@ -7,6 +7,7 @@
+ #include "z_boss_04.h"
+ #include "z64shrink_window.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -168,7 +169,8 @@ void Boss04_Init(Actor* thisx, PlayState* play2) {
+     Actor_SetScale(&this->actor, 0.1f);
+     this->actor.attentionRangeType = ATTENTION_RANGE_5;
+     this->actor.hintId = TATL_HINT_ID_WART;
+-    this->actor.colChkInfo.health = 20;
++    // Miniboss Overhaul: twice the HP. Damage dealt by the player is unchanged.
++    this->actor.colChkInfo.health = MO_HP(20);
+     this->actor.colChkInfo.damageTable = &sDamageTable;
+     this->unk_700 = 1.0f;
+     this->unk_6FC = 1.0f;
+@@ -451,7 +453,8 @@ void func_809ECD18(Boss04* this, PlayState* play) {
+                    Math_Atan2S(this->unk_6C8.x - this->actor.world.pos.x, this->unk_6C8.z - this->actor.world.pos.z), 5,
+                    0x200);
+ 
+-    if (((s8)this->actor.colChkInfo.health <= 10) || (KREG(88) != 0)) {
++    // Miniboss Overhaul: this behavior change still kicks in at half HP, whatever that half now is.
++    if (((s8)this->actor.colChkInfo.health <= MO_HP(10)) || (KREG(88) != 0)) {
+         KREG(88) = 0;
+         func_809ECEF4(this);
+     }
+diff --git a/mm/src/overlays/actors/ovl_En_Bigokuta/z_en_bigokuta.c b/mm/src/overlays/actors/ovl_En_Bigokuta/z_en_bigokuta.c
+index d66782f94..766c7558e 100644
+--- a/mm/src/overlays/actors/ovl_En_Bigokuta/z_en_bigokuta.c
++++ b/mm/src/overlays/actors/ovl_En_Bigokuta/z_en_bigokuta.c
+@@ -6,6 +6,7 @@
+ 
+ #include "z_en_bigokuta.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE)
+ 
+@@ -101,6 +102,8 @@ void EnBigokuta_Init(Actor* thisx, PlayState* play) {
+     Collider_InitAndSetCylinder(play, &this->shellCollider, &this->picto.actor, &sShellCylinderInit);
+     Collider_InitAndSetCylinder(play, &this->bodyCollider, &this->picto.actor, &sBodyCylinderInit);
+     CollisionCheck_SetInfo(&this->picto.actor.colChkInfo, NULL, &sColChkInfoInit);
++    // Enemy Overhaul: a bit tougher for something this size (1.5x HP).
++    this->picto.actor.colChkInfo.health = EO_HP_PCT(this->picto.actor.colChkInfo.health, 150);
+     this->csId = CutsceneManager_GetAdditionalCsId(this->picto.actor.csId);
+ 
+     if (CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_WOODFALL_TEMPLE) ||
+diff --git a/mm/src/overlays/actors/ovl_En_Bsb/z_en_bsb.c b/mm/src/overlays/actors/ovl_En_Bsb/z_en_bsb.c
+index 458bc54ee..13679398c 100644
+--- a/mm/src/overlays/actors/ovl_En_Bsb/z_en_bsb.c
++++ b/mm/src/overlays/actors/ovl_En_Bsb/z_en_bsb.c
+@@ -8,6 +8,7 @@
+ #include "z64rumble.h"
+ #include "z64shrink_window.h"
+ #include "2s2h/GameInteractor/GameInteractor.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
+ #include "overlays/effects/ovl_Effect_Ss_Hahen/z_eff_ss_hahen.h"
+@@ -375,7 +376,9 @@ void EnBsb_Init(Actor* thisx, PlayState* play) {
+     this->pathIndex = ENBSB_GET_PATH_INDEX(&this->actor);
+     this->switchFlag1 = ENBSB_GET_SWITCH_FLAG1(&this->actor);
+     this->switchFlag2 = ENBSB_GET_SWITCH_FLAG2(&this->actor);
+-    this->actor.colChkInfo.health = 24;
++    // Miniboss Overhaul: twice the HP, so Keeta can shrug off more hits from the Stalchildren on the way to Ikana
++    // Castle without ending his escort event early.
++    this->actor.colChkInfo.health = MO_HP(24);
+     this->actor.hintId = TATL_HINT_ID_CAPTAIN_KEETA;
+     this->actor.gravity = -2.0f;
+ 
+@@ -974,7 +977,8 @@ void func_80C0D10C(EnBsb* this, PlayState* play) {
+     func_80C0B31C(play, this, &this->unk_02F8);
+ 
+     if (curFrame >= this->animEndFrame) {
+-        if ((this->actor.world.pos.z > -1300.0f) || (this->actor.colChkInfo.health < 10)) {
++        // Miniboss Overhaul: the "badly hurt" threshold scales with his new max HP.
++        if ((this->actor.world.pos.z > -1300.0f) || (this->actor.colChkInfo.health < MO_HP(10))) {
+             func_80C0CA28(this, play);
+         } else {
+             func_80C0C86C(this);
+diff --git a/mm/src/overlays/actors/ovl_En_Death/z_en_death.c b/mm/src/overlays/actors/ovl_En_Death/z_en_death.c
+index 0bfd07506..83f4b82a7 100644
+--- a/mm/src/overlays/actors/ovl_En_Death/z_en_death.c
++++ b/mm/src/overlays/actors/ovl_En_Death/z_en_death.c
+@@ -9,6 +9,7 @@
+ #include "overlays/actors/ovl_Arrow_Light/z_arrow_light.h"
+ #include "objects/gameplay_keep/gameplay_keep.h"
+ #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -18,6 +19,9 @@ void EnDeath_Init(Actor* thisx, PlayState* play2);
+ void EnDeath_Destroy(Actor* thisx, PlayState* play);
+ void EnDeath_Update(Actor* thisx, PlayState* play);
+ void EnDeath_Draw(Actor* thisx, PlayState* play);
++// Miniboss Overhaul: a shard flung from the scythe spin
++void EnDeath_BoOrbUpdate(Actor* thisx, PlayState* play);
++void EnDeath_BoOrbDraw(Actor* thisx, PlayState* play);
+ void EnDeath_IntroCutscenePart1(EnDeath* this, PlayState* play);
+ void EnDeath_IntroCutscenePart2(EnDeath* this, PlayState* play);
+ void EnDeath_IntroCutscenePart3(EnDeath* this, PlayState* play);
+@@ -231,6 +235,14 @@ void EnDeath_Init(Actor* thisx, PlayState* play2) {
+     s16 yRot = 0;
+     s32 i;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        // Miniboss Overhaul: this instance is a shard flung from Gomess' scythe spin
++        BoOrb_Init(&this->actor, &this->boOrb, play);
++        this->actor.update = EnDeath_BoOrbUpdate;
++        this->actor.draw = EnDeath_BoOrbDraw;
++        return;
++    }
++
+     Actor_ProcessInitChain(&this->actor, sInitChain);
+     ActorShape_Init(&this->actor.shape, 5500.0f, ActorShadow_DrawCircle, 80.0f);
+ 
+@@ -246,6 +258,8 @@ void EnDeath_Init(Actor* thisx, PlayState* play2) {
+     this->coreCollider.dim.worldSphere.radius = this->coreCollider.dim.modelSphere.radius;
+ 
+     CollisionCheck_SetInfo2(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
++    // Miniboss Overhaul: twice the HP. Damage dealt by the player is unchanged.
++    this->actor.colChkInfo.health = MO_HP(this->actor.colChkInfo.health);
+ 
+     Effect_Add(play, &this->effectIndex, EFFECT_BLURE2, 0, 0, &sBlureInit);
+ 
+@@ -292,6 +306,11 @@ void EnDeath_Init(Actor* thisx, PlayState* play2) {
+ void EnDeath_Destroy(Actor* thisx, PlayState* play) {
+     EnDeath* this = (EnDeath*)thisx;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        BoOrb_Destroy(&this->actor, &this->boOrb, play);
++        return;
++    }
++
+     Collider_DestroySphere(play, &this->coreCollider);
+     Collider_DestroyCylinder(play, &this->bodyCollider);
+     Collider_DestroyQuad(play, &this->weaponCollider);
+@@ -300,6 +319,18 @@ void EnDeath_Destroy(Actor* thisx, PlayState* play) {
+     Effect_Destroy(play, this->effectIndex);
+ }
+ 
++void EnDeath_BoOrbUpdate(Actor* thisx, PlayState* play) {
++    EnDeath* this = (EnDeath*)thisx;
++
++    BoOrb_Update(&this->actor, &this->boOrb, play);
++}
++
++void EnDeath_BoOrbDraw(Actor* thisx, PlayState* play) {
++    EnDeath* this = (EnDeath*)thisx;
++
++    BoOrb_Draw(&this->actor, &this->boOrb, play);
++}
++
+ void EnDeath_DimLights(PlayState* play) {
+     EnvLightSettings* lightSettings;
+     s32 i;
+@@ -753,6 +784,24 @@ void EnDeath_SpinAttack(EnDeath* this, PlayState* play) {
+     SkelAnime_Update(&this->skelAnime);
+     if (Animation_OnFrame(&this->skelAnime, 0.0f)) {
+         Audio_PlaySfx_AtPos(&this->scytheScreenPos, NA_SE_EN_DEATH_ROLL);
++
++        // Miniboss Overhaul: once per revolution, the spinning scythe flings a ring of shards outward.
++        if (MO_ATTACKS_ENABLED()) {
++            Vec3f from = this->actor.world.pos;
++            s16 baseYaw = this->actor.shape.rot.y;
++            s32 i;
++
++            from.y += 40.0f;
++            for (i = 0; i < 6; i++) {
++                s16 yaw = baseYaw + (i * 0x2AAA);
++                Vec3f velocity;
++
++                velocity.x = Math_SinS(yaw) * 11.0f;
++                velocity.y = 0.0f;
++                velocity.z = Math_CosS(yaw) * 11.0f;
++                BoOrb_Spawn(play, ACTOR_EN_DEATH, BO_ORB_EMBER, &from, &velocity);
++            }
++        }
+     }
+ 
+     if (this->numScytheAfterImages < 7) {
+diff --git a/mm/src/overlays/actors/ovl_En_Death/z_en_death.h b/mm/src/overlays/actors/ovl_En_Death/z_en_death.h
+index ea33ea2ad..72215d80a 100644
+--- a/mm/src/overlays/actors/ovl_En_Death/z_en_death.h
++++ b/mm/src/overlays/actors/ovl_En_Death/z_en_death.h
+@@ -4,6 +4,7 @@
+ #include "global.h"
+ #include "overlays/actors/ovl_En_Minideath/z_en_minideath.h"
+ #include "objects/object_death/object_death.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ struct EnDeath;
+ 
+@@ -58,6 +59,7 @@ typedef struct EnDeath {
+     /* 0x808 */ ColliderSphere coreCollider;
+     /* 0x860 */ ColliderTris weaponSpinningCollider;
+     /* 0x880 */ ColliderTrisElement weaponSpinningColliderElements[2];
+-} EnDeath; // size = 0x938
++    BoOrb boOrb; // Miniboss Overhaul: state of an orb instance, flung outward during the scythe spin
++} EnDeath; // size = 0x938 (vanilla)
+ 
+ #endif // Z_EN_DEATH_H
+diff --git a/mm/src/overlays/actors/ovl_En_Dinofos/z_en_dinofos.c b/mm/src/overlays/actors/ovl_En_Dinofos/z_en_dinofos.c
+index a81d7c37f..2856dcbb3 100644
+--- a/mm/src/overlays/actors/ovl_En_Dinofos/z_en_dinofos.c
++++ b/mm/src/overlays/actors/ovl_En_Dinofos/z_en_dinofos.c
+@@ -6,6 +6,7 @@
+ 
+ #include "z_en_dinofos.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -298,6 +299,8 @@ void EnDinofos_Init(Actor* thisx, PlayState* play) {
+                               this->bodyAndFireColliderElements);
+     Collider_InitAndSetQuad(play, &this->knifeCollider, &this->actor, &sQuadInit);
+     CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
++    // Enemy Overhaul: a bit tougher (1.5x HP).
++    this->actor.colChkInfo.health = EO_HP_PCT(this->actor.colChkInfo.health, 150);
+     SkelAnime_InitFlex(play, &this->skelAnime, &gDinolfosSkel, &gDinolfosIdleAnim, this->jointTable, this->morphTable,
+                        DINOLFOS_LIMB_MAX);
+ 
+diff --git a/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.c b/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.c
+index 7c8e97ff0..3f33616fe 100644
+--- a/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.c
++++ b/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.c
+@@ -16,6 +16,9 @@ void EnDragon_Destroy(Actor* thisx, PlayState* play);
+ void EnDragon_Update(Actor* thisx, PlayState* play);
+ void EnDragon_Draw(Actor* thisx, PlayState* play);
+ void EnDragon_Reset(void);
++// Miniboss Overhaul: a water bolt spat from the jaw
++void EnDragon_BoOrbUpdate(Actor* thisx, PlayState* play);
++void EnDragon_BoOrbDraw(Actor* thisx, PlayState* play);
+ 
+ void EnDragon_SetupRetreatOrIdle(EnDragon* this);
+ void EnDragon_RetreatOrIdle(EnDragon* this, PlayState* play);
+@@ -205,10 +208,19 @@ static ColliderJntSphInit sJntSphInit = {
+ void EnDragon_Init(Actor* thisx, PlayState* play) {
+     EnDragon* this = (EnDragon*)thisx;
+ 
++    if (thisx->params == BO_ORB_PARAMS) {
++        // Miniboss Overhaul: this instance is a water bolt spat from the jaw
++        BoOrb_Init(thisx, &this->boOrb, play);
++        thisx->update = EnDragon_BoOrbUpdate;
++        thisx->draw = EnDragon_BoOrbDraw;
++        return;
++    }
++
+     SkelAnime_InitFlex(play, &this->skelAnime, &gDeepPythonSkel, &gDeepPythonSmallSideSwayAnim, this->jointTable,
+                        this->morphTable, DEEP_PYTHON_LIMB_MAX);
+ 
+-    this->actor.colChkInfo.health = 4;
++    // Miniboss Overhaul: twice the HP.
++    this->actor.colChkInfo.health = MO_HP(4);
+     this->actor.colChkInfo.damageTable = &sDamageTable;
+     this->actor.attentionRangeType = ATTENTION_RANGE_10;
+     Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colliderElements);
+@@ -248,9 +260,26 @@ void EnDragon_Init(Actor* thisx, PlayState* play) {
+ void EnDragon_Destroy(Actor* thisx, PlayState* play) {
+     EnDragon* this = (EnDragon*)thisx;
+ 
++    if (thisx->params == BO_ORB_PARAMS) {
++        BoOrb_Destroy(thisx, &this->boOrb, play);
++        return;
++    }
++
+     Collider_DestroyJntSph(play, &this->collider);
+ }
+ 
++void EnDragon_BoOrbUpdate(Actor* thisx, PlayState* play) {
++    EnDragon* this = (EnDragon*)thisx;
++
++    BoOrb_Update(thisx, &this->boOrb, play);
++}
++
++void EnDragon_BoOrbDraw(Actor* thisx, PlayState* play) {
++    EnDragon* this = (EnDragon*)thisx;
++
++    BoOrb_Draw(thisx, &this->boOrb, play);
++}
++
+ typedef enum {
+     /* 0 */ DEEP_PYTHON_ANIM_SMALL_SIDE_SWAY,
+     /* 1 */ DEEP_PYTHON_ANIM_LARGE_SIDE_SWAY,
+@@ -372,7 +401,9 @@ void EnDragon_SetupExtend(EnDragon* this) {
+     this->state = 0;
+     this->behindJawRetreatTimer = this->state;
+     Actor_PlaySfx(&this->actor, NA_SE_EN_UTSUBO_APPEAR_TRG);
+-    this->retreatTimer = 250;
++    // Miniboss Overhaul: stays extended and threatening for longer before it's forced to retreat.
++    this->retreatTimer = MO_DEEP_PYTHON_ENABLED() ? 400 : 250;
++    this->spitTimer = 60;
+     this->actionFunc = EnDragon_Extend;
+ }
+ 
+@@ -437,6 +468,26 @@ void EnDragon_Extend(EnDragon* this, PlayState* play) {
+             }
+ 
+             this->behindJawRetreatTimer = 0;
++
++            // Miniboss Overhaul: rather than only being a threat on contact, it also spits a bolt of water at Link
++            // while it's swaying and facing him, so simply staying out of grab range isn't automatically safe.
++            if (MO_DEEP_PYTHON_ENABLED() && (this->state != DEEP_PYTHON_EXTEND_STATE_NOT_FULLY_EXTENDED)) {
++                if (this->spitTimer > 0) {
++                    this->spitTimer--;
++                }
++                if (this->spitTimer == 0) {
++                    Vec3f velocity;
++                    EnDragon* bolt;
++
++                    this->spitTimer = 70;
++                    BoOrb_AimVelocity(&this->jawPos, &player->actor.world.pos, 13.0f, 0, &velocity);
++                    bolt = (EnDragon*)BoOrb_Spawn(play, ACTOR_EN_DRAGON, BO_ORB_WATER, &this->jawPos, &velocity);
++                    if (bolt != NULL) {
++                        bolt->boOrb.gravity = -0.15f;
++                    }
++                    Actor_PlaySfx(&this->actor, NA_SE_EV_BOMB_DROP_WATER);
++                }
++            }
+         } else {
+             // Player is in behind the jaw
+             if (this->state == DEEP_PYTHON_EXTEND_STATE_REPEAT_LARGE_SWAY) {
+diff --git a/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.h b/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.h
+index fa0979389..1b65d95c3 100644
+--- a/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.h
++++ b/mm/src/overlays/actors/ovl_En_Dragon/z_en_dragon.h
+@@ -3,6 +3,7 @@
+ 
+ #include "global.h"
+ #include "objects/object_utubo/object_utubo.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define EN_DRAGON_GET_PYTHON_INDEX(thisx) (((thisx)->params >> 7) & 0x1F)
+ 
+@@ -58,6 +59,8 @@ typedef struct EnDragon {
+     /* 0x2D8 */ UNK_TYPE1 unk_2D8[0x4];
+     /* 0x2DC */ ColliderJntSph collider;
+     /* 0x2FC */ ColliderJntSphElement colliderElements[8];
+-} EnDragon; // size = 0x4FC
++    s16 spitTimer; // Miniboss Overhaul: frames until it can spit another water bolt while extended
++    BoOrb boOrb;   // Miniboss Overhaul: state of an orb instance, spit from the jaw
++} EnDragon; // size = 0x4FC (vanilla)
+ 
+ #endif // Z_EN_DRAGON_H
+diff --git a/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.c b/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.c
+index 58d8337a3..be2fd54b4 100644
+--- a/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.c
++++ b/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.c
+@@ -55,6 +55,9 @@ void EnEgol_Init(Actor* thisx, PlayState* play);
+ void EnEgol_Destroy(Actor* thisx, PlayState* play);
+ void EnEgol_Update(Actor* thisx, PlayState* play);
+ void EnEgol_Draw(Actor* thisx, PlayState* play2);
++// Miniboss Overhaul: a shockwave chunk flung from its ground slam
++void EnEgol_BoOrbUpdate(Actor* thisx, PlayState* play);
++void EnEgol_BoOrbDraw(Actor* thisx, PlayState* play);
+ 
+ void EnEgol_SetupWait(EnEgol* this);
+ void EnEgol_Wait(EnEgol* this, PlayState* play);
+@@ -437,6 +440,14 @@ void EnEgol_GetWaypoint(EnEgol* this) {
+ void EnEgol_Init(Actor* thisx, PlayState* play) {
+     EnEgol* this = (EnEgol*)thisx;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        // Miniboss Overhaul: this instance is a shockwave chunk flung from its ground slam
++        BoOrb_Init(&this->actor, &this->boOrb, play);
++        this->actor.update = EnEgol_BoOrbUpdate;
++        this->actor.draw = EnEgol_BoOrbDraw;
++        return;
++    }
++
+     this->actor.gravity = -2.0f;
+     Actor_SetScale(&this->actor, 0.015f);
+     this->actor.colChkInfo.damageTable = &sDamageTable;
+@@ -444,7 +455,8 @@ void EnEgol_Init(Actor* thisx, PlayState* play) {
+ 
+     this->actor.colChkInfo.mass = MASS_IMMOVABLE;
+     this->actor.hintId = TATL_HINT_ID_EYEGORE;
+-    this->actor.colChkInfo.health = 8;
++    // Miniboss Overhaul: twice the HP, same as every other miniboss.
++    this->actor.colChkInfo.health = MO_HP(8);
+ 
+     SkelAnime_InitFlex(play, &this->skelAnime, &gEyegoreSkel, &gEyegoreStandAnim, this->jointTable, this->morphTable,
+                        EYEGORE_LIMB_MAX);
+@@ -497,11 +509,28 @@ void EnEgol_Init(Actor* thisx, PlayState* play) {
+ void EnEgol_Destroy(Actor* thisx, PlayState* play) {
+     EnEgol* this = (EnEgol*)thisx;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        BoOrb_Destroy(&this->actor, &this->boOrb, play);
++        return;
++    }
++
+     Collider_DestroyJntSph(play, &this->bodyCollider);
+     Collider_DestroyJntSph(play, &this->eyeCollider);
+     Collider_DestroyQuad(play, &this->laserCollider);
+ }
+ 
++void EnEgol_BoOrbUpdate(Actor* thisx, PlayState* play) {
++    EnEgol* this = (EnEgol*)thisx;
++
++    BoOrb_Update(&this->actor, &this->boOrb, play);
++}
++
++void EnEgol_BoOrbDraw(Actor* thisx, PlayState* play) {
++    EnEgol* this = (EnEgol*)thisx;
++
++    BoOrb_Draw(&this->actor, &this->boOrb, play);
++}
++
+ void EnEgol_SetupWait(EnEgol* this) {
+     this->actor.flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
+     this->action = EYEGORE_ACTION_WAIT;
+@@ -932,6 +961,26 @@ void EnEgol_Slam(EnEgol* this, PlayState* play) {
+             spawnPos.y = this->actor.floorHeight + 2.0f;
+             spawnPos.z += Math_CosS(this->actor.world.rot.y) * 55.0f;
+             EnEgol_SpawnEffect(this, &spawnPos, &gZeroVec3s, 100, 0.03f, EYEGORE_EFFECT_IMPACT);
++
++            // Miniboss Overhaul: on top of the decorative rubble, the slam also flings a couple of shockwave chunks
++            // outward that can actually hit Link, so backing off from a slam isn't automatically completely safe.
++            if (MO_ATTACKS_ENABLED()) {
++                s32 j;
++
++                for (j = 0; j < 2; j++) {
++                    s16 yaw = this->actor.world.rot.y + 0x8000 + (s16)((j - 0.5f) * 0x3000);
++                    Vec3f shardVel;
++                    EnEgol* shard;
++
++                    shardVel.x = Math_SinS(yaw) * 6.0f;
++                    shardVel.y = 6.0f;
++                    shardVel.z = Math_CosS(yaw) * 6.0f;
++                    shard = (EnEgol*)BoOrb_Spawn(play, ACTOR_EN_EGOL, BO_ORB_EMBER, &spawnPos, &shardVel);
++                    if (shard != NULL) {
++                        shard->boOrb.gravity = -0.4f;
++                    }
++                }
++            }
+         }
+         EnEgol_DestroyBlocks(this, play, this->rightHandPos, this->leftHandPos);
+     }
+@@ -983,7 +1032,8 @@ void EnEgol_SlamWait(EnEgol* this, PlayState* play) {
+ 
+     if (curFrame >= this->animEndFrame) {
+         this->actionTimer++;
+-        if (this->actionTimer > 20) {
++        // Miniboss Overhaul: shorter recovery hold after the slam before it can act again.
++        if (this->actionTimer > (MO_ATTACKS_ENABLED() ? 10 : 20)) {
+             this->eyeCollider.elements[0].base.elemMaterial = ELEM_MATERIAL_UNK2;
+             EnEgol_SetupSlamEnd(this);
+         }
+diff --git a/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.h b/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.h
+index 66c828922..f816f8f8c 100644
+--- a/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.h
++++ b/mm/src/overlays/actors/ovl_En_Egol/z_en_egol.h
+@@ -3,6 +3,7 @@
+ 
+ #include "global.h"
+ #include "objects/object_eg/object_eg.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ struct EnEgol;
+ 
+@@ -109,6 +110,7 @@ typedef struct EnEgol {
+     /* 0x1E34 */ Vec3f subCamAt;
+     /* 0x1E40 */ Vec3f subCamEye;
+     /* 0x1E4C */ UNK_TYPE1 unk_1E4C[0x24]; // Vec3f[3]?
+-} EnEgol; // size = 0x1E70
++    BoOrb boOrb; // Miniboss Overhaul: state of an orb instance, a chunk flung from its ground slam
++} EnEgol; // size = 0x1E70 (vanilla)
+ 
+ #endif // Z_EN_EGOL_H
+diff --git a/mm/src/overlays/actors/ovl_En_Encount1/z_en_encount1.c b/mm/src/overlays/actors/ovl_En_Encount1/z_en_encount1.c
+index 310da3bec..679fa4487 100644
+--- a/mm/src/overlays/actors/ovl_En_Encount1/z_en_encount1.c
++++ b/mm/src/overlays/actors/ovl_En_Encount1/z_en_encount1.c
+@@ -8,6 +8,7 @@
+ #include "overlays/actors/ovl_En_Grasshopper/z_en_grasshopper.h"
+ #include "overlays/actors/ovl_En_Wallmas/z_en_wallmas.h"
+ #include "overlays/actors/ovl_En_Pr2/z_en_pr2.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_FREEZE_EXCEPTION | ACTOR_FLAG_LOCK_ON_DISABLED)
+ 
+@@ -52,6 +53,11 @@ void EnEncount1_Init(Actor* thisx, PlayState* play) {
+ 
+     this->type = ENENCOUNT1_GET_TYPE(&this->actor);
+     this->spawnActiveMax = ENENCOUNT1_GET_SPAWN_ACTIVE_MAX(&this->actor);
++    // Enemy Overhaul: let dragonfly/skullfish swarms run one extra concurrent enemy for more chaotic encounters.
++    // Wallmasters are deliberately excluded (an extra one is a difficulty spike, not "variety").
++    if (EO_VARIETY_ENABLED() && (this->type != EN_ENCOUNT1_WALLMASTER) && (this->spawnActiveMax > 0)) {
++        this->spawnActiveMax += 1;
++    }
+     this->spawnTotalMax = ENENCOUNT1_GET_SPAWN_TOTAL_MAX(&this->actor);
+     this->spawnTimeMin = ENENCOUNT1_GET_SPAWN_TIME_MIN(&this->actor);
+     this->spawnUnusedProp = ENENCOUNT1_GET_SPAWN_UNUSED_PROP(&this->actor);
+diff --git a/mm/src/overlays/actors/ovl_En_Encount4/z_en_encount4.c b/mm/src/overlays/actors/ovl_En_Encount4/z_en_encount4.c
+index a1f426b2c..469ce4ced 100644
+--- a/mm/src/overlays/actors/ovl_En_Encount4/z_en_encount4.c
++++ b/mm/src/overlays/actors/ovl_En_Encount4/z_en_encount4.c
+@@ -5,9 +5,13 @@
+  */
+ 
+ #include "z_en_encount4.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_LOCK_ON_DISABLED)
+ 
++// Miniboss Overhaul: one more Stalchild per ambush point along Captain Keeta's route.
++#define ENCOUNT4_STALCHILD_CAP (MO_ATTACKS_ENABLED() ? 3 : 2)
++
+ void EnEncount4_Init(Actor* thisx, PlayState* play);
+ void EnEncount4_Destroy(Actor* thisx, PlayState* play);
+ void EnEncount4_Update(Actor* thisx, PlayState* play);
+@@ -176,7 +180,7 @@ void func_809C42A8(EnEncount4* this, PlayState* play) {
+     if (Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_SKB, pos.x, pos.y, pos.z, 0, 0, 0,
+                            ENSKB_PARAM_0) != NULL) {
+         this->unk_14C++;
+-        if (this->unk_14C >= 2) {
++        if (this->unk_14C >= ENCOUNT4_STALCHILD_CAP) {
+             this->actionFunc = func_809C4598;
+         }
+     }
+diff --git a/mm/src/overlays/actors/ovl_En_Ik/z_en_ik.c b/mm/src/overlays/actors/ovl_En_Ik/z_en_ik.c
+index 9920746bf..2c08612af 100644
+--- a/mm/src/overlays/actors/ovl_En_Ik/z_en_ik.c
++++ b/mm/src/overlays/actors/ovl_En_Ik/z_en_ik.c
+@@ -7,6 +7,7 @@
+ #include "z_en_ik.h"
+ #include "z64rumble.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER)
+ 
+@@ -278,6 +279,9 @@ void EnIk_Init(Actor* thisx, PlayState* play) {
+     Collider_InitAndSetTris(play, &this->colliderTris, &this->actor, &sTrisInit, this->shieldColliderElements);
+     Collider_InitAndSetQuad(play, &this->colliderQuad, &this->actor, &sQuadInit);
+     CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTableArmor, &sColChkInfoInit);
++    // Miniboss Overhaul: twice the armored HP (the unarmored HP it drops to once its armor breaks is scaled where
++    // that reset happens, in EnIk_UpdateDamage).
++    this->actor.colChkInfo.health = MO_HP(this->actor.colChkInfo.health);
+     this->actor.params = IK_GET_ARMOR_TYPE(&this->actor);
+     this->actor.params--;
+ 
+@@ -349,7 +353,10 @@ s32 EnIk_ChooseAttack(EnIk* this) {
+         absYawDiff = ABS_ALT(BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.shape.rot.y));
+ 
+         if (detectionThreshold >= absYawDiff) {
+-            if (Rand_ZeroOne() < 0.5f) {
++            // Miniboss Overhaul: favors the double swing over the single vertical chop more often.
++            f32 verticalChance = MO_ATTACKS_ENABLED() ? 0.3f : 0.5f;
++
++            if (Rand_ZeroOne() < verticalChance) {
+                 EnIk_SetupVerticalAttack(this);
+                 return true;
+             }
+@@ -377,7 +384,8 @@ void EnIk_SetupIdle(EnIk* this) {
+     f32 endFrame = Animation_GetLastFrame(&gIronKnuckleHorizontalAttackAnim);
+ 
+     if (this->drawArmorFlags != 0) {
+-        this->timer = 10;
++        // Miniboss Overhaul: shorter pause before it re-engages (vanilla wind-up/attack animations are untouched).
++        this->timer = MO_ATTACKS_ENABLED() ? 4 : 10;
+     } else {
+         this->timer = 0;
+     }
+@@ -623,7 +631,8 @@ void EnIk_SetupBlock(EnIk* this) {
+     this->actor.speed = 0.0f;
+     Animation_Change(&this->skelAnime, &gIronKnuckleBlockAnim, 2.0f, 0.0f,
+                      Animation_GetLastFrame(&gIronKnuckleBlockAnim), ANIMMODE_ONCE, -2.0f);
+-    this->timer = 20;
++    // Miniboss Overhaul: shorter hold before it swings back.
++    this->timer = MO_ATTACKS_ENABLED() ? 12 : 20;
+     this->actionFunc = EnIk_Block;
+ }
+ 
+@@ -791,7 +800,8 @@ void EnIk_UpdateDamage(EnIk* this, PlayState* play) {
+             this->colliderQuad.base.atFlags &= ~AT_ON;
+             if (Actor_ApplyDamage(&this->actor) == 0) {
+                 if (this->drawArmorFlags == 0) {
+-                    this->actor.colChkInfo.health = 9;
++                    // Miniboss Overhaul: twice the unarmored HP too.
++                    this->actor.colChkInfo.health = MO_HP(9);
+                     isArmorBroken = true;
+                 } else {
+                     Enemy_StartFinishingBlow(play, &this->actor);
+diff --git a/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.c b/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.c
+index c91f2d6c5..1214c5c4a 100644
+--- a/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.c
++++ b/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.c
+@@ -17,6 +17,9 @@ void EnJso2_Init(Actor* thisx, PlayState* play);
+ void EnJso2_Destroy(Actor* thisx, PlayState* play);
+ void EnJso2_Update(Actor* thisx, PlayState* play);
+ void EnJso2_Draw(Actor* thisx, PlayState* play2);
++// Miniboss Overhaul: a thrown kunai
++void EnJso2_BoOrbUpdate(Actor* thisx, PlayState* play);
++void EnJso2_BoOrbDraw(Actor* thisx, PlayState* play);
+ 
+ void EnJso2_SetupIntroCutscene(EnJso2* this);
+ void EnJso2_IntroCutscene(EnJso2* this, PlayState* play);
+@@ -342,10 +345,19 @@ void EnJso2_Init(Actor* thisx, PlayState* play) {
+     EffectBlureInit1 rightSwordBlureInit;
+     EffectBlureInit1 leftSwordBlureInit;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        // Miniboss Overhaul: this instance is a kunai thrown while falling from a teleport
++        BoOrb_Init(&this->actor, &this->boOrb, play);
++        this->actor.update = EnJso2_BoOrbUpdate;
++        this->actor.draw = EnJso2_BoOrbDraw;
++        return;
++    }
++
+     this->actor.hintId = TATL_HINT_ID_GARO_MASTER;
+     this->actor.attentionRangeType = ATTENTION_RANGE_5;
+     this->actor.colChkInfo.mass = 80;
+-    this->actor.colChkInfo.health = 14;
++    // Miniboss Overhaul: twice the HP.
++    this->actor.colChkInfo.health = MO_HP(14);
+     ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 0.0f);
+     this->actor.colChkInfo.damageTable = &sDamageTable;
+     this->actor.shape.shadowScale = 0.0f;
+@@ -406,6 +418,11 @@ void EnJso2_Init(Actor* thisx, PlayState* play) {
+ void EnJso2_Destroy(Actor* thisx, PlayState* play) {
+     EnJso2* this = (EnJso2*)thisx;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        BoOrb_Destroy(&this->actor, &this->boOrb, play);
++        return;
++    }
++
+     Collider_DestroyCylinder(play, &this->bodyCollider);
+     Collider_DestroyQuad(play, &this->rightSwordCollider);
+     Collider_DestroyQuad(play, &this->leftSwordCollider);
+@@ -415,6 +432,18 @@ void EnJso2_Destroy(Actor* thisx, PlayState* play) {
+     Audio_RestorePrevBgm();
+ }
+ 
++void EnJso2_BoOrbUpdate(Actor* thisx, PlayState* play) {
++    EnJso2* this = (EnJso2*)thisx;
++
++    BoOrb_Update(&this->actor, &this->boOrb, play);
++}
++
++void EnJso2_BoOrbDraw(Actor* thisx, PlayState* play) {
++    EnJso2* this = (EnJso2*)thisx;
++
++    BoOrb_Draw(&this->actor, &this->boOrb, play);
++}
++
+ void EnJso2_ChangeAnim(EnJso2* this, s32 animIndex) {
+     f32 playSpeed;
+ 
+@@ -1017,6 +1046,16 @@ void EnJso2_SetupFallFromTeleport(EnJso2* this, PlayState* play) {
+     Actor_PlaySfx(&this->actor, NA_SE_EN_ANSATSUSYA_FALL);
+     this->action = EN_JSO2_ACTION_FALL_FROM_TELEPORT;
+     this->actionFunc = EnJso2_FallFromTeleport;
++
++    // Miniboss Overhaul: throws a kunai down at Link the instant it reappears above him, so watching the ground for
++    // where he'll land isn't enough on its own.
++    if (MO_ATTACKS_ENABLED()) {
++        Vec3f velocity;
++
++        BoOrb_AimVelocity(&this->actor.world.pos, &player->actor.world.pos, 14.0f, 0, &velocity);
++        BoOrb_Spawn(play, ACTOR_EN_JSO2, BO_ORB_ELECTRIC, &this->actor.world.pos, &velocity);
++        Actor_PlaySfx(&this->actor, NA_SE_EN_ANSATSUSYA_DASH_2);
++    }
+ }
+ 
+ /**
+diff --git a/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.h b/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.h
+index 53eb99c3a..3a54ed51f 100644
+--- a/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.h
++++ b/mm/src/overlays/actors/ovl_En_Jso2/z_en_jso2.h
+@@ -3,6 +3,7 @@
+ 
+ #include "global.h"
+ #include "assets/objects/object_jso/object_jso.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ struct EnJso2;
+ 
+@@ -105,6 +106,7 @@ typedef struct EnJso2 {
+     /* 0x106C */ Vec3f unk_106C; // unused, type inferred from surrounding members
+     /* 0x1078 */ Vec3f subCamEyeNext;
+     /* 0x1084 */ Vec3f subCamAtNext;
+-} EnJso2; // size = 0x1090
++    BoOrb boOrb; // Miniboss Overhaul: state of an orb instance, thrown while falling from a teleport
++} EnJso2; // size = 0x1090 (vanilla)
+ 
+ #endif // Z_EN_JSO2_H
+diff --git a/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.c b/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.c
+index ea4b377b1..de48b18d8 100644
+--- a/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.c
++++ b/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.c
+@@ -11,6 +11,7 @@
+ #include "overlays/effects/ovl_Effect_Ss_Hitmark/z_eff_ss_hitmark.h"
+ #include "objects/gameplay_keep/gameplay_keep.h"
+ #include "objects/object_knight/object_knight.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -20,6 +21,9 @@ void EnKnight_Init(Actor* thisx, PlayState* play);
+ void EnKnight_Destroy(Actor* thisx, PlayState* play);
+ void EnKnight_Update(Actor* thisx, PlayState* play);
+ void EnKnight_Draw(Actor* thisx, PlayState* play);
++// Miniboss Overhaul: an ember thrown during Igos' breath attack
++void EnKnight_BoOrbUpdate(Actor* thisx, PlayState* play);
++void EnKnight_BoOrbDraw(Actor* thisx, PlayState* play);
+ 
+ void EnKnight_UpdateAfterImage(Actor* thisx, PlayState* play);
+ void EnKnight_DrawAfterImage(Actor* thisx, PlayState* play);
+@@ -553,6 +557,14 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
+     s32 pad;
+     s32 sfxIndex;
+ 
++    if (this->actor.params == BO_ORB_PARAMS) {
++        // Miniboss Overhaul: this instance is one of Igos' breath embers
++        BoOrb_Init(&this->actor, &this->boOrb, play);
++        this->actor.update = EnKnight_BoOrbUpdate;
++        this->actor.draw = EnKnight_BoOrbDraw;
++        return;
++    }
++
+     // Common init
+ 
+     this->actor.attentionRangeType = ATTENTION_RANGE_5;
+@@ -572,7 +584,8 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
+         EnKnight_SetupFlyingHead(this, play);
+         Collider_InitAndSetCylinder(play, &this->headAttackCollider, &this->actor, &sHeadAttackColliderCylinderInit);
+         Collider_InitAndSetCylinder(play, &this->headCollider, &this->actor, &sHeadColliderCylinderInit);
+-        this->actor.colChkInfo.health = 10 - BREG(40);
++        // Miniboss Overhaul: twice the HP for Igos' floating-head dodge phase.
++        this->actor.colChkInfo.health = MO_HP(10 - BREG(40));
+         return;
+     }
+ 
+@@ -619,7 +632,8 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
+                                   this->swordColliderElements);
+         SkelAnime_InitFlex(play, &this->skelAnime, &gKnightSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
+                            KNIGHT_LIMB_MAX);
+-        this->actor.colChkInfo.health = 6 - BREG(40);
++        // Miniboss Overhaul: twice the HP for the King's Lackeys.
++        this->actor.colChkInfo.health = MO_HP(6 - BREG(40));
+         Actor_SetScale(&this->actor, KREG(13) * 0.001f + 0.013f);
+     } else {
+         // Igos
+@@ -628,7 +642,8 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
+                                   this->swordColliderElements);
+         SkelAnime_InitFlex(play, &this->skelAnime, &gIgosSkel, &gKnightIdleAnim, this->jointTable, this->morphTable,
+                            IGOS_LIMB_MAX);
+-        this->actor.colChkInfo.health = 14 - BREG(41);
++        // Miniboss Overhaul: twice the HP for Igos' sword duel phase.
++        this->actor.colChkInfo.health = MO_HP(14 - BREG(41));
+         Actor_SetScale(&this->actor, KREG(12) * 0.001f + 0.017f);
+         this->igosCurtainReaction = Rand_ZeroFloat(1.9999f); // random 0 or 1
+     }
+@@ -696,6 +711,23 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
+ }
+ 
+ void EnKnight_Destroy(Actor* thisx, PlayState* play) {
++    EnKnight* this = (EnKnight*)thisx;
++
++    if (this->actor.params == BO_ORB_PARAMS) {
++        BoOrb_Destroy(&this->actor, &this->boOrb, play);
++    }
++}
++
++void EnKnight_BoOrbUpdate(Actor* thisx, PlayState* play) {
++    EnKnight* this = (EnKnight*)thisx;
++
++    BoOrb_Update(&this->actor, &this->boOrb, play);
++}
++
++void EnKnight_BoOrbDraw(Actor* thisx, PlayState* play) {
++    EnKnight* this = (EnKnight*)thisx;
++
++    BoOrb_Draw(&this->actor, &this->boOrb, play);
+ }
+ 
+ void EnKnight_CheckRetreat(EnKnight* this, PlayState* play) {
+@@ -1581,10 +1613,11 @@ void EnKnight_FallOver(EnKnight* this, PlayState* play) {
+         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
+         EnKnight_SetupGetBackUp(this, play);
+ 
++        // Miniboss Overhaul: getting back up restores the same (doubled) HP it started the knockdown with.
+         if (this == sIgosInstance) {
+-            this->actor.colChkInfo.health = 14 - BREG(41);
++            this->actor.colChkInfo.health = MO_HP(14 - BREG(41));
+         } else {
+-            this->actor.colChkInfo.health = 6 - BREG(40);
++            this->actor.colChkInfo.health = MO_HP(6 - BREG(40));
+         }
+         this->bodyCollider.elements[0].base.acElemFlags &= ~ACELEM_HIT;
+         this->bodyCollider.elements[1].base.acElemFlags &= ~ACELEM_HIT;
+@@ -2234,6 +2267,22 @@ void EnKnight_BreathAttack(EnKnight* this, PlayState* play) {
+         case KNIGHT_SUB_ACTION_BREATH_ATTACK_1:
+             EnKnight_SpawnBreathEffects(this, play, 0x1600);
+ 
++            // Miniboss Overhaul: every 20 frames of the breath, Igos also lobs a fireball that arcs down onto Link,
++            // so simply hiding from the cone of fire doesn't make the attack completely safe.
++            if (MO_ATTACKS_ENABLED() && ((this->timers[0] % 20) == 0)) {
++                Player* mo_player = GET_PLAYER(play);
++                Vec3f mo_to = mo_player->actor.world.pos;
++                Vec3f mo_vel;
++                EnKnight* mo_orb;
++
++                BoOrb_ArcVelocity(&this->breathBasePos, &mo_to, 32.0f, -1.2f, &mo_vel);
++                mo_orb = (EnKnight*)BoOrb_Spawn(play, ACTOR_EN_KNIGHT, BO_ORB_FIRE, &this->breathBasePos, &mo_vel);
++                if (mo_orb != NULL) {
++                    mo_orb->boOrb.gravity = -1.2f;
++                }
++                Actor_PlaySfx(&this->actor, NA_SE_EV_FLAME_IGNITION);
++            }
++
+             if (KREG(21) == 0) {
+                 this->neckYawTarget = Math_SinS((KREG(84) + 0x11DC) * this->randTimer) * (KREG(85) * 0x800 + 0x1800) +
+                                       this->neckYawTarget;
+@@ -2251,7 +2300,9 @@ void EnKnight_BreathAttack(EnKnight* this, PlayState* play) {
+ 
+             if (Animation_OnFrame(&this->skelAnime, this->animEndFrame)) {
+                 EnKnight_SetupWait(this, play);
+-                this->timers[2] = Rand_ZeroFloat(150.0f) + 150.0f;
++                // Miniboss Overhaul: shorter breather before he can breathe fire again.
++                this->timers[2] =
++                    MO_ATTACKS_ENABLED() ? (Rand_ZeroFloat(80.0f) + 80.0f) : (Rand_ZeroFloat(150.0f) + 150.0f);
+             }
+             break;
+     }
+diff --git a/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.h b/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.h
+index 11efe2196..2cafa5263 100644
+--- a/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.h
++++ b/mm/src/overlays/actors/ovl_En_Knight/z_en_knight.h
+@@ -4,6 +4,7 @@
+ #include "assert.h"
+ #include "global.h"
+ #include "objects/object_knight/object_knight.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ static_assert((u32)IGOS_LIMB_MAX == (u32)KNIGHT_LIMB_MAX,
+               "The skeletons for Igos du Ikana and his aides must match in structure");
+@@ -150,6 +151,7 @@ typedef struct EnKnight {
+     /* 0x6C2 */ u16 voiceSfx;
+     /* 0x6C4 */ u8 seenCaptainsHat;
+     /* 0x6C8 */ Vec3f projectedPos;
+-} EnKnight; // size = 0x6D4
++    BoOrb boOrb; // Miniboss Overhaul: state of an orb instance, spawned during Igos' breath attack
++} EnKnight; // size = 0x6D4 (vanilla)
+ 
+ #endif // Z_EN_KNIGHT_H
+diff --git a/mm/src/overlays/actors/ovl_En_Mkk/z_en_mkk.c b/mm/src/overlays/actors/ovl_En_Mkk/z_en_mkk.c
+index 62fe50f9a..2bffdf328 100644
+--- a/mm/src/overlays/actors/ovl_En_Mkk/z_en_mkk.c
++++ b/mm/src/overlays/actors/ovl_En_Mkk/z_en_mkk.c
+@@ -6,6 +6,7 @@
+ 
+ #include "z_en_mkk.h"
+ #include "objects/object_mkk/object_mkk.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE)
+ 
+@@ -144,6 +145,8 @@ void EnMkk_Init(Actor* thisx, PlayState* play) {
+     Collider_InitAndSetSphere(play, &this->collider, &this->actor, &sSphereInit);
+     this->collider.dim.worldSphere.radius = sSphereInit.dim.modelSphere.radius;
+     CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInfoInit);
++    // Enemy Overhaul: takes two hits instead of dying to the first one.
++    this->actor.colChkInfo.health = EO_HP_PCT(this->actor.colChkInfo.health, 200);
+     ActorShape_Init(&this->actor.shape, 1000.0f, NULL, 0.0f);
+ 
+     this->primColorSelect = 0;
+diff --git a/mm/src/overlays/actors/ovl_En_Pametfrog/z_en_pametfrog.c b/mm/src/overlays/actors/ovl_En_Pametfrog/z_en_pametfrog.c
+index 8849ea126..c0e13a8f4 100644
+--- a/mm/src/overlays/actors/ovl_En_Pametfrog/z_en_pametfrog.c
++++ b/mm/src/overlays/actors/ovl_En_Pametfrog/z_en_pametfrog.c
+@@ -10,6 +10,7 @@
+ #include "overlays/actors/ovl_En_Bigpamet/z_en_bigpamet.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
+ #include "overlays/effects/ovl_Effect_Ss_Hahen/z_eff_ss_hahen.h"
++#include "2s2h/Enhancements/MinibossOverhaul/MinibossOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -186,6 +187,9 @@ void EnPametfrog_Init(Actor* thisx, PlayState* play) {
+     Actor_ProcessInitChain(&this->actor, sInitChain);
+     ActorShape_Init(&this->actor.shape, 0.0f, ActorShadow_DrawCircle, 55.0f);
+     CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable, &sColChkInit);
++    // Miniboss Overhaul: twice the HP for this dive of the fight (the HP it's given back each time it calls Snapper
++    // is scaled separately, in EnPametfrog_SetupCallSnapper).
++    this->actor.colChkInfo.health = MO_HP(this->actor.colChkInfo.health);
+     SkelAnime_InitFlex(play, &this->skelAnime, &gGekkoSkel, &gGekkoBoxingStanceAnim, this->jointTable, this->morphTable,
+                        GEKKO_LIMB_MAX);
+     Collider_InitAndSetJntSph(play, &this->collider, &this->actor, &sJntSphInit, this->colElement);
+@@ -1072,7 +1076,8 @@ void EnPametfrog_JumpToLink(EnPametfrog* this, PlayState* play) {
+ 
+ void EnPametfrog_SetupMeleeAttack(EnPametfrog* this) {
+     Animation_PlayOnce(&this->skelAnime, &gGekkoBoxingStanceAnim);
+-    this->timer = 7;
++    // Miniboss Overhaul: a longer flurry of punches and kicks before it backs off.
++    this->timer = MO_ATTACKS_ENABLED() ? 11 : 7;
+     this->actor.speed = 0.0f;
+     this->actionFunc = EnPametfrog_MeleeAttack;
+ }
+@@ -1174,7 +1179,8 @@ void EnPametfrog_SetupCallSnapper(EnPametfrog* this, PlayState* play) {
+     Animation_MorphToPlayOnce(&this->skelAnime, &gGekkoCallAnim, 3.0f);
+     Actor_PlaySfx(&this->actor, NA_SE_EN_FROG_GREET);
+     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
+-    this->actor.colChkInfo.health = 6;
++    // Miniboss Overhaul: twice the HP for the next dive too.
++    this->actor.colChkInfo.health = MO_HP(6);
+     this->actor.world.rot.y = Actor_WorldYawTowardPoint(&this->actor, &this->actor.home.pos);
+     yawDiff = this->actor.yawTowardsPlayer - this->actor.world.rot.y;
+     if (yawDiff > 0) {
+diff --git a/mm/src/overlays/actors/ovl_En_Po_Sisters/z_en_po_sisters.c b/mm/src/overlays/actors/ovl_En_Po_Sisters/z_en_po_sisters.c
+index fc525c151..fd054aa4c 100644
+--- a/mm/src/overlays/actors/ovl_En_Po_Sisters/z_en_po_sisters.c
++++ b/mm/src/overlays/actors/ovl_En_Po_Sisters/z_en_po_sisters.c
+@@ -7,6 +7,7 @@
+ #include "z_en_po_sisters.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
+ #include "objects/gameplay_keep/gameplay_keep.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -191,7 +192,8 @@ void EnPoSisters_Init(Actor* thisx, PlayState* play) {
+         EnPoSisters_SetupObserverIdle(this);
+     } else if (this->type == POE_SISTERS_TYPE_MEG) {
+         if (this->megCloneId == POE_SISTERS_MEG_REAL) {
+-            this->actor.colChkInfo.health = 8;
++            // Enemy Overhaul: the real Poe Sister takes a bit more punishment once you've found her (1.5x HP).
++            this->actor.colChkInfo.health = EO_HP_PCT(8, 150);
+             this->collider.elem.atDmgInfo.damage = 16;
+             this->collider.base.ocFlags1 = (OC1_TYPE_PLAYER | OC1_ON);
+             EnPoSisters_SpawnMegClones(this, play);
+diff --git a/mm/src/overlays/actors/ovl_En_Rd/z_en_rd.c b/mm/src/overlays/actors/ovl_En_Rd/z_en_rd.c
+index 3f1068c23..7083c845e 100644
+--- a/mm/src/overlays/actors/ovl_En_Rd/z_en_rd.c
++++ b/mm/src/overlays/actors/ovl_En_Rd/z_en_rd.c
+@@ -26,6 +26,7 @@
+ #include "z64rumble.h"
+ #include "objects/object_rd/object_rd.h"
+ #include "overlays/actors/ovl_Obj_Ice_Poly/z_obj_ice_poly.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -196,7 +197,8 @@ void EnRd_Init(Actor* thisx, PlayState* play) {
+     this->actor.focus.pos = this->actor.world.pos;
+     this->actor.focus.pos.y += 50.0f;
+     this->actor.colChkInfo.mass = MASS_HEAVY;
+-    this->actor.colChkInfo.health = 8;
++    // Enemy Overhaul: ReDead and Gibdo are a bit tougher (1.5x HP).
++    this->actor.colChkInfo.health = EO_HP_PCT(8, 150);
+     this->alpha = 255;
+     this->unk_3F1 = -1;
+     this->flags = EN_RD_GET_FLAGS(thisx);
+diff --git a/mm/src/overlays/actors/ovl_En_Wf/z_en_wf.c b/mm/src/overlays/actors/ovl_En_Wf/z_en_wf.c
+index ef712fad2..085621654 100644
+--- a/mm/src/overlays/actors/ovl_En_Wf/z_en_wf.c
++++ b/mm/src/overlays/actors/ovl_En_Wf/z_en_wf.c
+@@ -8,6 +8,7 @@
+ #include "overlays/actors/ovl_En_Bom_Chu/z_en_bom_chu.h"
+ #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
+ #include "overlays/actors/ovl_Obj_Ice_Poly/z_obj_ice_poly.h"
++#include "2s2h/Enhancements/EnemyOverhaul/EnemyOverhaul.h"
+ 
+ #define FLAGS                                                                                 \
+     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
+@@ -329,6 +330,8 @@ void EnWf_Init(Actor* thisx, PlayState* play) {
+                            this->morphTable, WOLFOS_WHITE_LIMB_MAX);
+         this->actor.hintId = TATL_HINT_ID_WHITE_WOLFOS;
+         CollisionCheck_SetInfo(&this->actor.colChkInfo, &sDamageTable1, &sColChkInfoInit);
++        // Enemy Overhaul: White Wolfos is a bit tougher than its grey cousin (1.5x HP). Regular Wolfos is unchanged.
++        this->actor.colChkInfo.health = EO_HP_PCT(this->actor.colChkInfo.health, 150);
+     }
+ 
+     if (this->actor.child == NULL) {
