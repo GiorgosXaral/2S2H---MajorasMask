@@ -1,120 +1,88 @@
-# Builds 2 Ship 2 Harkinian (lightmanLP's mouse-support fork, tag M3.1.0) for Windows with both overhaul patches.
-#
-# Put this file at .github/workflows/build.yml in your repository, with these two files at the repository root:
-#   mm-boss-overhaul.patch       (Boss Overhaul, Epona Control Overhaul, Sword Projectiles)
-#   mm-miniboss-overhaul.patch   (Miniboss & Enemy Overhaul, needs the boss patch first)
-#
-# Runs on every push and from the Actions tab ("Run workflow"). The result is the "2ship-exe" artifact: just
-# 2ship.exe. Neither patch changes any asset, so keep using the 2ship.o2r and mm.o2r you already have from M3.1.0.
-name: build-2ship-overhaul
- 
+name: build-mm-mouse-boss-overhaul
 on:
   push:
   workflow_dispatch:
- 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
- 
-env:
-  UPSTREAM_REPO: lightmanLP/2ship2harkinian
-  UPSTREAM_REF: M3.1.0
- 
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Install dependencies
-        run: |
-          choco install ninja -y
-          Remove-Item -Path "C:\ProgramData\Chocolatey\bin\ccache.exe" -Force -ErrorAction SilentlyContinue
+    - name: Keep LF line endings so the patch applies
+      run: git config --global core.autocrlf false
+    - name: Checkout this repo (contains mm-boss-overhaul.patch)
+      uses: actions/checkout@v6
+      with:
+        path: builder
+    - name: Checkout 2 Ship 2 Harkinian with mouse support (lightmanLP M3.1.0)
+      uses: actions/checkout@v6
+      with:
+        repository: lightmanLP/2ship2harkinian
+        ref: f62b7ffd5e688f212d624cb7c62c56d02aefeb07
+        submodules: true
+        path: 2ship
+    - name: Apply Boss Overhaul patch
+      working-directory: 2ship
+      run: git apply --whitespace=nowarn ../builder/mm-boss-overhaul.patch
+    - name: Install ninja
+      run: |
+        choco install ninja -y
+        Remove-Item -Path "C:\ProgramData\Chocolatey\bin\ccache.exe" -Force -ErrorAction SilentlyContinue
+    - name: Configure Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Build 2ship.exe
+      working-directory: 2ship
+      env:
+        VCPKG_ROOT: ${{ github.workspace }}/2ship/vcpkg
+      run: |
+        cmake -S . -B build-windows -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release
+        cmake --build build-windows --config Release --parallel 4
+    # Like Ship of Harkinian, this project's CMake puts the Windows exe in <source>/Release rather than the build
+    # folder. Search for it instead of assuming a path, and never fail here: listing.txt goes into the artifact either
+    # way, so a miss can be diagnosed from the download alone.
+    - name: Collect 2ship.exe
+      if: always()
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Continue'
+        New-Item -ItemType Directory -Force -Path out | Out-Null
  
-      # Keep the sources exactly as they are in git (LF), so both patches apply cleanly on Windows
-      - name: Configure git line endings
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.eol lf
- 
-      - name: Checkout 2Ship (${{ env.UPSTREAM_REPO }} @ ${{ env.UPSTREAM_REF }})
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ env.UPSTREAM_REPO }}
-          ref: ${{ env.UPSTREAM_REF }}
-          submodules: true
- 
-      - name: Checkout patches
-        uses: actions/checkout@v6
-        with:
-          path: overlay
- 
-      - name: Apply patches
-        run: |
-          git apply --check --whitespace=nowarn overlay/mm-boss-overhaul.patch
-          if ($LASTEXITCODE -ne 0) { throw "mm-boss-overhaul.patch does not apply" }
-          git apply --whitespace=nowarn overlay/mm-boss-overhaul.patch
-          if ($LASTEXITCODE -ne 0) { throw "mm-boss-overhaul.patch failed" }
-          git apply --check --whitespace=nowarn overlay/mm-miniboss-overhaul.patch
-          if ($LASTEXITCODE -ne 0) { throw "mm-miniboss-overhaul.patch does not apply" }
-          git apply --whitespace=nowarn overlay/mm-miniboss-overhaul.patch
-          if ($LASTEXITCODE -ne 0) { throw "mm-miniboss-overhaul.patch failed" }
-          Remove-Item -Recurse -Force overlay
-          git status --short
- 
-      - name: Configure sccache
-        uses: hendrikmuhs/ccache-action@v1.2.22
-        with:
-          variant: sccache
-          max-size: "2G"
-          evict-old-files: job
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-${{ github.ref }}
-            ${{ runner.os }}-ccache
- 
-      - name: Restore cached vcpkg folder
-        id: restore-cache-vcpkg
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ runner.os }}-vcpkg-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-${{ github.ref }}-
-            ${{ runner.os }}-vcpkg-
-          path: vcpkg
- 
-      - name: Configure Developer Command Prompt
-        uses: ilammy/msvc-dev-cmd@v1
- 
-      # Only the game itself (the "2ship" target): no 2ship.o2r generation and no packaging
-      - name: Build 2ship.exe
-        env:
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-        run: |
-          cmake -S . -B build-windows -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
-          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
-          cmake --build build-windows --config Release --target 2ship --parallel 10
-          if ($LASTEXITCODE -ne 0) { throw "Build failed" }
- 
-      # Libraries are linked statically (x64-windows-static), so the exe is all that's needed
-      - name: Collect 2ship.exe
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path out | Out-Null
-          $exe = Get-ChildItem -Path build-windows -Recurse -Filter 2ship.exe -File -ErrorAction SilentlyContinue |
+        $exe = $null
+        if (Test-Path '2ship/Release/2ship.exe') {
+          $exe = Get-Item '2ship/Release/2ship.exe'
+        } else {
+          $exe = Get-ChildItem -Path 2ship -Recurse -Filter 2ship.exe -File -Force -ErrorAction SilentlyContinue |
                  Sort-Object Length -Descending | Select-Object -First 1
-          if (-not $exe) { throw "2ship.exe was not built" }
-          Write-Host "Found $($exe.FullName) ($($exe.Length) bytes)"
+        }
+ 
+        $lines = @()
+        if ($exe) {
+          $lines += "FOUND 2ship.exe: $($exe.FullName)  ($($exe.Length) bytes)"
           Copy-Item $exe.FullName out/2ship.exe -Force
+          $dir = Split-Path $exe.FullName -Parent
+          $lines += "--- files next to it ---"
+          Get-ChildItem -Path $dir -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $lines += "  $($_.Name)  $($_.Length)"
+            if ($_.Extension -eq '.dll') { Copy-Item $_.FullName out/ -Force }
+          }
+        } else {
+          $lines += "NO 2ship.exe ANYWHERE"
+        }
  
-      - name: Upload 2ship.exe
-        uses: actions/upload-artifact@v7
-        with:
-          name: 2ship-exe
-          path: out/2ship.exe
+        $lines += "--- every .exe built (vcpkg excluded) ---"
+        Get-ChildItem -Path 2ship -Recurse -Filter *.exe -File -Force -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -notmatch '[\\/]vcpkg[\\/]' } |
+          ForEach-Object { $lines += "  $($_.FullName)  $($_.Length)" }
  
-      - name: Save cached vcpkg folder
-        if: ${{ success() && github.ref_name == github.event.repository.default_branch }}
-        uses: actions/cache/save@v4
-        with:
-          key: ${{ steps.restore-cache-vcpkg.outputs.cache-primary-key }}
-          path: vcpkg
+        $lines | Out-File -FilePath out/listing.txt -Encoding utf8
+        $lines | Write-Host
+        exit 0
+    - name: Upload 2ship.exe
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: 2ship-mouse-boss-overhaul
+        path: out
+        if-no-files-found: warn
  
