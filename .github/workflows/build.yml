@@ -94,14 +94,28 @@ jobs:
           cmake --build build-windows --config Release --target 2ship --parallel 10
           if ($LASTEXITCODE -ne 0) { throw "Build failed" }
  
-      # Libraries are linked statically (x64-windows-static), so the exe is all that's needed
+      # Libraries are linked statically (x64-windows-static), so the exe is all that's needed.
+      # 2Ship's CMake writes the Windows exe to <source>/Release, not into the build folder,
+      # so look there first and then search the whole checkout (vcpkg excluded).
       - name: Collect 2ship.exe
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
-          $exe = Get-ChildItem -Path build-windows -Recurse -Filter 2ship.exe -File -ErrorAction SilentlyContinue |
-                 Sort-Object Length -Descending | Select-Object -First 1
-          if (-not $exe) { throw "2ship.exe was not built" }
+          $exe = $null
+          if (Test-Path 'Release/2ship.exe') {
+            $exe = Get-Item 'Release/2ship.exe'
+          } else {
+            $exe = Get-ChildItem -Path . -Recurse -Filter 2ship.exe -File -Force -ErrorAction SilentlyContinue |
+                   Where-Object { $_.FullName -notmatch '[\\/]vcpkg[\\/]' -and $_.FullName -notmatch '[\\/]out[\\/]' } |
+                   Sort-Object Length -Descending | Select-Object -First 1
+          }
+          if (-not $exe) {
+            Write-Host "--- every .exe built (vcpkg excluded) ---"
+            Get-ChildItem -Path . -Recurse -Filter *.exe -File -Force -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -notmatch '[\\/]vcpkg[\\/]' } |
+              ForEach-Object { Write-Host "  $($_.FullName)  $($_.Length)" }
+            throw "2ship.exe was not found"
+          }
           Write-Host "Found $($exe.FullName) ($($exe.Length) bytes)"
           Copy-Item $exe.FullName out/2ship.exe -Force
  
