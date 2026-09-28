@@ -6,8 +6,20 @@ Majora: 3× HP in every phase (Mask 14→42, Incarnation 30→90, Wrath 40→120
 Mask: every 150 frames it shakes as a warning, then fires one of three volleys in turn: a fan of 5 aimed at you, an expanding ring of 12, or 6 orbs raining down around you. Incarnation: its pirouette sprays a two-armed spiral of orbs. Its moonwalk leaves slow drifting orbs behind it. Its energy-ball attack now throws two extra side shots with each ball. Wrath: every whip crack sends a fan of 3 bolts along the floor from the whip tip, and its spin attack flings orbs in all directions. Summoned enemies: at ¾, ½ and ¼ health, Wrath calls the Remains back into the fight as flying enemies that shoot and ram you. First Odolwa and Goht, then Gyorg and Twinmold, then all four. They die when Wrath dies. Fierce Deity: Majora takes half damage, the Mask uses its fire beam (vanilla deliberately never does against FD), and every pattern above gets bigger: fan 7, ring 16, a four-armed spiral, 5 whip bolts, and all four Remains in every wave. This has its own checkbox, so you can turn it off.
 
 Twinmold: 2× HP
-
-Fire breath: a long-range stream of burning fireballs, about 2,800 units. It sweeps toward you with a lag rather than snapping onto you, so you can outrun it or hide behind a ruin, which blocks it. Eruptions: every time a head bursts through the sand, a ring of fireballs rains down around the hole. After one head dies: the survivor's breath lasts longer and splits into three jets. Giant's Mask: that mode shrinks the whole arena rather than enlarging Link, so the fire scales with it and still reads as a real flamethrower against giant Link.
+Dragon breath:
+Wind-up: the dragon slows down and draws fire or frost into its jaws. The jaws glow and light up the arena.
+The stream: it pours out large fireballs or frost balls with flames or mist streaming from the mouth. The stream sweeps after you with a lag.
+Effects: fire burns you, frost freezes you, and neither can be blocked with a shield.
+Cover: ruins stop the breath and are no longer worn down by it, so hiding behind one works.
+Meteor storm (red) and hailstorm (blue): while flying high, the dragon spits balls into the sky. They come down as meteors or giant icicles on spots around you, the first one where you were standing. Each spot is marked by a ring closing in about 1.5 seconds before impact. The explosion can smash ruins.
+Eruption: each time a dragon bursts out of the sand, a ring of fire or ice is thrown out of the hole.
+Burning ground and ice spikes: the big attacks leave these behind for about 4 seconds. Ice spikes freeze you once, then shatter.
+Body: the red dragon's body throws off flames and the blue one's sheds freezing mist.
+After one dies: the survivor takes its twin's element too. Its breath splits into three jets, one element in the middle and the other on the sides, and swaps each time. Its storms mix meteors and icicles.
+With the Giant's Mask:
+Full damage: the dragons' attacks do the same damage they do to normal-sized Link.
+Bigger, faster attacks: they shrink less than the arena does and move faster relative to it, so you can't just walk away from them.
+More pressure: the dragons chase you more often and attack about 25% more often. Touching a dragon's body hurts twice as much as it did before, which is still half of what it does at normal size.
 
 Odolwa: 2× HP
 
